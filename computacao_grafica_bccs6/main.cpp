@@ -64,6 +64,8 @@ void AddTriangle(GLuint program, char* charCode, GLenum type) {
 
 
     //tratar os erros
+  
+    glAttachShader(program, _shader);
 }
 
 int main() {
