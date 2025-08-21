@@ -49,7 +49,7 @@ void CreateTriangle() {
     glBindVertexArray(0);
 }
 
-void AddTriangle(GLuint program, char* charCode, GLenum type) {
+void AddTriangle(GLuint program, const char* charCode, GLenum type) {
     GLuint _shader = glCreateShader(type);
     // _item para sinalizar que eh um item local e temporario, e nao global.
 
@@ -64,8 +64,22 @@ void AddTriangle(GLuint program, char* charCode, GLenum type) {
 
 
     //tratar os erros
-  
+
     glAttachShader(program, _shader);
+}
+
+void AddProgram() {
+    shaderProgram = glCreateProgram();
+
+    if (!shaderProgram) {
+        printf("Erro ao criar o programa!");
+        return;
+    }
+
+    AddTriangle(shaderProgram, vertexShader, GL_VERTEX_SHADER);
+    AddTriangle(shaderProgram, fragmentShader, GL_FRAGMENT_SHADER);
+
+    glLinkProgram(shaderProgram);
 }
 
 int main() {
