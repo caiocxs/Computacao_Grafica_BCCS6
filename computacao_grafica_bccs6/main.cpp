@@ -2,8 +2,12 @@
 #include <stdio.h>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <cstdlib>
 #include <time.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 using namespace std;
 
 
@@ -14,19 +18,31 @@ const GLint WIDTH = 800, HEIGHT = 600;
 // todo programa pode ser chamado de shader
 GLuint VAO, VBO, shaderProgram;
 
+float toRadians = 3.1415f / 180.0f;
+
+bool direction[] = { false, false }, directionScale[] = {false, false};
+float triOffset[] = { 0.0f, 0.0f }, triOffsetMax = 0.7f, triOffsetMin = -0.7f, triIncrement[] = { 0.01f, 0.02f };
+float triOffsetScale[] = { 0.2f, 0.2f }, triOffsetScaleMax = 1.2f, triOffsetScaleMin = 0.2f, triOffsetScaleIncrement[] = { 0.01f, 0.02f };
+float triCurrentAngle = 0.0f, triAngleIncrement = 1.0f;
+
+// vertex lida com o shader
 static const char* vertexShader = "                                 \n\
 #version 330                                                        \n\
                                                                     \n\
     //é compilado apenas uma vez e não muda na execução             \n\
 layout(location = 0) in vec2 pos;                                   \n\
     //^^^^^^^^^^^^^^ é um argumento                                 \n\
+uniform mat4 model;                                                 \n\
+ // ^^^^^^^^^^^^ -> chamado model pelos calculos que vamos          \n\
+ // utilizar para calcular a posicao do nosso modelo atual.         \n\
                                                                     \n\
 void main() {                                                       \n\
-    gl_Position = vec4(pos.x, pos.y, 0.0, 1.0);                     \n\
+    gl_Position = model * vec4(pos.x, pos.y, 0.0, 1.0);             \n\
   //^^^^^^^^^ -> fica estatico e nao mexe no processo!              \n\
 }                                                                   \n\
 ";
 
+// fragment lida somente com cores
 static const char* fragmentShader = "                               \n\
 #version 330                                                        \n\
                                                                     \n\
@@ -151,17 +167,79 @@ int main() {
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT);
 
-        srand(time(0));
-        float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		    float g = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		    float b = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-        printf("%d, %d, %d\n", r, g, b);
-
         // ----- desenhando o triangulo
+        
         //altera a cor do triangulo
+        /*
+        float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+	    float g = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+	    float b = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+
         GLint uniformColor = glGetUniformLocation(shaderProgram, "tricolor");
             //retorna onde esta o ponteiro para popular, tal a variavel do fragment
         glUniform4f(uniformColor, r, g, b, 1.0f);
+        */
+
+        //movimenta o triangulo
+
+        if (!direction[0]) {
+            triOffset[0] += triIncrement[0];
+        }
+        else {
+            triOffset[0] -= triIncrement[0];
+        }
+        
+        if (!direction[1]) {
+            triOffset[1] += triIncrement[1];
+        }
+        else {
+            triOffset[1] -= triIncrement[1];
+        }
+
+        if (triOffset[0] > triOffsetMax || triOffset[0] < triOffsetMin) {
+            direction[0] = !direction[0];
+        }
+        if (triOffset[1] > triOffsetMax || triOffset[1] < triOffsetMin) {
+            direction[1] = !direction[1];
+        }
+
+        triCurrentAngle += triAngleIncrement;
+        if (triCurrentAngle >= 360)
+            triCurrentAngle = 0;
+
+        if (!directionScale[0]) {
+            triOffsetScale[0] += triIncrement[0];
+        }
+        else {
+            triOffsetScale[0] -= triIncrement[0];
+        }
+
+        if (!directionScale[1]) {
+            triOffsetScale[1] += triIncrement[1];
+        }
+        else {
+            triOffsetScale[1] -= triIncrement[1];
+        }
+
+        if (triOffsetScale[0] > triOffsetScaleMax || triOffsetScale[0] < triOffsetScaleMin) {
+            directionScale[0] = !directionScale[0];
+        }
+        if (triOffsetScale[1] > triOffsetScaleMax || triOffsetScale[1] < triOffsetScaleMin) {
+            directionScale[1] = !directionScale[1];
+        }
+
+        GLint uniformModel = glGetUniformLocation(shaderProgram, "model");
+        //^^^^^^^^^^^^^ <- ENDEREÇO DE POSX E NÃO SEU VALOR
+        glm::mat4 model(1.0f);
+        //^^^^^-> cria uma matriz 4x4 cheia de 1
+
+        model = glm::translate(model, glm::vec3(triOffset[0], triOffset[1], 0.f));
+        model = glm::scale(model, glm::vec3(triOffsetScale[0], triOffsetScale[1], 0.0f));
+        model = glm::rotate(model, triCurrentAngle * toRadians, glm::vec3(1.0f, 1.0f, 1.0f));
+
+        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+        // ^^^^^^^^^^^^^^^ -> (ENDEREÇO, QUANTOS MODELS, SE ESTA TRANSPOSTA, VALOR MAS CONVERTIDO PARA PONTEIRO)
+        
 
             
         // inicia o programa
