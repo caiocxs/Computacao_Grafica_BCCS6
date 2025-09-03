@@ -17,6 +17,7 @@ GLuint VAO, VBO, shaderProgram;
 static const char* vertexShader = "                                 \n\
 #version 330                                                        \n\
                                                                     \n\
+    //é compilado apenas uma vez e não muda na execução             \n\
 layout(location = 0) in vec2 pos;                                   \n\
     //^^^^^^^^^^^^^^ é um argumento                                 \n\
                                                                     \n\
@@ -151,9 +152,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         srand(time(0));
-        float r = (1.0f + static_cast<float>(rand()) % 10) / 10;
-        float g = 1.0f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (1.01f - 1.0f)));
-        float b = 1.0f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (1.01f - 1.0f)));
+        float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		    float g = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		    float b = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
         printf("%d, %d, %d\n", r, g, b);
 
         // ----- desenhando o triangulo
