@@ -16,7 +16,7 @@ const GLint WIDTH = 800, HEIGHT = 600;
 // VBO é o ponteiro para os meus dados brutos, são os dados do objeto a ser representado pelo VAO 
 // shaderProgram é qual programa estou rodando 
 // todo programa pode ser chamado de shader
-GLuint VAO, VBO, shaderProgram;
+GLuint VAO, VBO, IBO, shaderProgram;
 
 float toRadians = 3.1415f / 180.0f;
 
@@ -26,54 +26,82 @@ float triOffsetScale[] = { 0.2f, 0.2f }, triOffsetScaleMax = 1.2f, triOffsetScal
 float triCurrentAngle = 0.0f, triAngleIncrement = 1.0f;
 
 // vertex lida com o shader
-static const char* vertexShader = "                                 \n\
-#version 330                                                        \n\
-                                                                    \n\
-    //é compilado apenas uma vez e não muda na execução             \n\
-layout(location = 0) in vec2 pos;                                   \n\
-    //^^^^^^^^^^^^^^ é um argumento                                 \n\
-uniform mat4 model;                                                 \n\
- // ^^^^^^^^^^^^ -> chamado model pelos calculos que vamos          \n\
- // utilizar para calcular a posicao do nosso modelo atual.         \n\
-                                                                    \n\
-void main() {                                                       \n\
-    gl_Position = model * vec4(pos.x, pos.y, 0.0, 1.0);             \n\
-  //^^^^^^^^^ -> fica estatico e nao mexe no processo!              \n\
-}                                                                   \n\
+static const char* vertexShader = "                                                                          \n\
+#version 330                                                                                                 \n\
+                                                                                                             \n\
+    //é compilado apenas uma vez e não muda na execução                                                      \n\
+layout(location = 0) in vec3 pos;                                                                            \n\
+    //^^^^^^^^^^^^^^ é um argumento                                                                          \n\
+                                                                                                             \n\
+uniform mat4 model;                                                                                          \n\
+ // ^^^^^^^^^^^^ -> chamado model pelos calculos que vamos                                                   \n\
+ // utilizar para calcular a posicao do nosso modelo atual.                                                  \n\
+                                                                                                             \n\
+uniform mat4 projection;                                                                                     \n\
+                                                                                                             \n\
+out vec4 vColor;                                                                                             \n\
+// ^^^^^^ -> usado somente para conversa entre vertex e frag!                                                \n\
+                                                                                                             \n\
+void main() {                                                                                                \n\
+    gl_Position = projection * model * vec4(pos, 1.0);                                                       \n\
+  //^^^^^^^^^ -> fica estatico e nao mexe no processo!                                                       \n\
+                                                                                                             \n\
+    vColor = vec4(clamp(pos, 0.0f, 1.0f), 1.0f);                                                             \n\
+    // ^^^^^ -> clamp vai deixar tudo no intervalo especificado                                              \n\
+}                                                                                                            \n\
 ";
 
 // fragment lida somente com cores
-static const char* fragmentShader = "                               \n\
-#version 330                                                        \n\
-                                                                    \n\
-uniform vec4 tricolor;                                              \n\
-out vec4 color;                                                     \n\
-// fala que ele tem uma saida do tipo e qual o nome                 \n\
-                                                                    \n\
-void main() {                                                       \n\
-    color = vec4(tricolor);                                         \n\
-  //^^^^^^                                                          \n\
-}                                                                   \n\
+static const char* fragmentShader = "                                                                       \n\
+#version 330                                                                                                \n\
+                                                                                                            \n\
+uniform vec4 tricolor;                                                                                      \n\
+out vec4 color;                                                                                             \n\
+// fala que ele tem uma saida do tipo e qual o nome                                                         \n\
+in vec4 vColor;                                                                                             \n\
+                                                                                                            \n\
+                                                                                                            \n\
+                                                                                                            \n\
+void main() {                                                                                               \n\
+    color = vColor;                                                                                         \n\
+  //^^^^^^                                                                                                  \n\
+}                                                                                                           \n\
 ";
 
 void CreateVertices() {
+    unsigned int indices[] = {
+        0, 1, 2,
+        0, 1, 3,
+        0, 2, 3,
+        1, 2, 3
+    };
+    // IBO -> Indice Buffer Object
+
     GLfloat vertices[] = {
-        0.0f, -1.0f,     // Vertice 1
-        1.0f, 1.0f,   // Vertice 2
-        -1.0f, 1.0f     //Vertice 3
+        0.0f, 1.0f, 0.0f,      // Vertice 1
+        1.0f, -1.0f, 0.0f,       // Vertice 2
+        -1.0f, -1.0f, 0.0f,       //Vertice 3
+        0.0f, 0.0f, 1.0f       //Vertice 4
     };
 
     glGenVertexArrays(1, &VAO);
     // Quantos VAOs estou alocando
     glBindVertexArray(VAO);
+
+        glGenBuffers(1, &IBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
         glGenBuffers(1, &VBO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
             glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-            // ( tipo, tamanho, item, tipo de uso )
-            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            // ( tipo, tamanho, item, tipo de uso (static -> sem mudanças )
+
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
             // ( Index de inicio, quantos items vou ler, tipo do item, se esta normalizado, quantos vou pular depois desses x e y, placeholder(?)
             glEnableVertexAttribArray(0);  // location
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
@@ -159,6 +187,10 @@ int main() {
 
     CreateVertices();
     AddProgram();
+
+    glm::mat4 projection = glm::perspective(45.0f, (GLfloat)widthBuffer/(GLfloat)heightBuffer, 0.1f, 100.0f);
+    // a nossa camera angulada 45graus pra baixo, a distancia dos dois, o quao perto e o quao longe da camera vai renderizar
+
     // desenhamos a tela enquanto não a fechamos
     while (!glfwWindowShouldClose(window)) {
         // cor de fundo da janela
@@ -228,26 +260,45 @@ int main() {
             directionScale[1] = !directionScale[1];
         }
 
+        GLint uniformProjection = glGetUniformLocation(shaderProgram, "projection");
+
+
         GLint uniformModel = glGetUniformLocation(shaderProgram, "model");
         //^^^^^^^^^^^^^ <- ENDEREÇO DE POSX E NÃO SEU VALOR
         glm::mat4 model(1.0f);
         //^^^^^-> cria uma matriz 4x4 cheia de 1
 
-        model = glm::translate(model, glm::vec3(triOffset[0], triOffset[1], 0.f));
-        model = glm::scale(model, glm::vec3(triOffsetScale[0], triOffsetScale[1], 0.0f));
-        model = glm::rotate(model, triCurrentAngle * toRadians, glm::vec3(1.0f, 1.0f, 1.0f));
+        //model = glm::translate(model, glm::vec3(triOffset[0], triOffset[1], 0.f));
+        //model = glm::scale(model, glm::vec3(triOffsetScale[0], triOffsetScale[1], 0.0f));
 
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f));
+        model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
+        model = glm::rotate(model, triCurrentAngle * toRadians, glm::vec3(0.7f, 0.5f, 1.0f));
+        
+        
+        
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
         // ^^^^^^^^^^^^^^^ -> (ENDEREÇO, QUANTOS MODELS, SE ESTA TRANSPOSTA, VALOR MAS CONVERTIDO PARA PONTEIRO)
         
 
             
         // inicia o programa
         glUseProgram(shaderProgram);
-        // chama o VAO, que é onde o triangulo está.
+
         glBindVertexArray(VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 3); // Triangulo, começando na posição 0, Numero de pontos 3
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+                glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+                // ( qual modelo estamos usando, quantas ligações temos que fazer, qual tipo, nenhuma posicao pra pular )
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        //Matou o programa
         glBindVertexArray(0);
+
+
+        // chama o VAO, que é onde o triangulo está.
+    //    glBindVertexArray(VAO);
+    //        glDrawArrays(GL_TRIANGLES, 0, 3); // Triangulo, começando na posição 0, Numero de pontos 3
+    //    glBindVertexArray(0);
 
 
 
